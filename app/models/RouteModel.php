@@ -4,6 +4,7 @@
     
     use touristiamo\Model as Model;
     use touristiamo\error\HttpError as HttpError;
+    use touristiamo\exception\BDException as BDException;
 
     /**
      * The class has protected or private variables , so you can protect them. 
@@ -11,7 +12,7 @@
      * However, our variables are public, because we use json. It will get the variable. 
      * If the variable is public, it won't get it.
      */
-    class Route extends Model
+    class RouteModel extends Model
     {
         /**
          *
@@ -56,8 +57,9 @@
         public $userId;
 
         /**
-         * 
+         * Construct a new Model with the data from the data base if pass id.
          * @param integer $id
+         * @throws BDException
          */
         public function __construct( $id = null)
         {
@@ -66,9 +68,12 @@
             {
                 $st = $this->conn->prepare('select id, handicapped, name, description, '
                         . 'slogan, cityId, userId from Route where id = :id');
-                $st->bindParam(':id', $this->id, PDO::PARAM_INT);
-                $st->execute();
-                $rs = $st->fetch(PDO::FETCH_OBJ);
+                $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                $rs = $st->fetch(\PDO::FETCH_OBJ);
 
                 //Insert value
                 $this->id = $rs->id;
@@ -81,7 +86,11 @@
             }
         }
 
-        
+        /**
+         * Save into the data base the current values in this object.
+         * @return boolean
+         * @throws BDException
+         */
         public function save()
         {
             try
@@ -94,18 +103,23 @@
                 $st->bindParam(':name', $this->name, \PDO::PARAM_STR);
                 $st->bindParam(':description', $this->description, \PDO::PARAM_STR);
                 $st->bindParam(':slogan', $this->slogan, \PDO::PARAM_STR);
-                $st->bindParam(':cityId', $this->cityId, \pdo::PARAM_INT);
-                $st->bindParam(':userId', $this->userId, \pdo::PARAM_INT);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
-            }catch(PDOException $e)
+                $st->bindParam(':cityId', $this->cityId, \PDO::PARAM_INT);
+                $st->bindParam(':userId', $this->userId, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return true;
+            }catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
             }
         }
         
         /**
-         * Update model into data base
+         * Update values from the data base with the current values in this object
          * @return boolean
+         * @throws BDException
          */
         public function update()
         {
@@ -122,7 +136,11 @@
                 $st->bindParam(':cityId', $this->cityId, \PDO::PARAM_INT);
                 $st->bindParam(':userId', $this->userId, \PDO::PARAM_INT);
                 $st->bindParam(':handicapped', $this->handicapped, \PDO::PARAM_STR);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return true;
             }catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
@@ -131,7 +149,9 @@
 
 
         /**
-         * Delete model from database
+         * Delete route from database
+         * @return boolean
+         * @throws BDException
          */
         public function delete()
         {
@@ -139,10 +159,90 @@
             {
                 $st = $this->connection->prepare('delete from route where id = :id');
                 $st->bindParam(':id', $this->id);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
-            } catch(PDOException $e)
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return true;
+            } catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
             }
         }
+        
+        /**
+         * Return all routes from the data base.
+         * @return \ArrayIterator
+         * @throws BDException
+         */
+        public function getAll()
+        {
+            try
+            {
+                $st = $this->connection->prepare('select * from route');
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            } catch (\PDOException $e)
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
+        
+        
+        /**
+         * Return all routes from the data base by country id.
+         * @return \ArrayIterator
+         * @throws BDException
+         */
+        public function getAllByCountry($countryId)
+        {
+            try
+            {
+                $st = $this->connection->prepare('select route.id, route.name, '
+                    . 'route.slogan, route.description, '
+                    . 'route.handicapped, route.cityId, route.userId from route '
+                    . 'inner join city on route.cityId = city.id '
+                    . 'inner join country on city.countryId = country.id '
+                    . 'where country.id = :countryId');
+                $st->bindParam(':countryId', $countryId, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            } catch (\PDOException $e)
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
+        
+        /**
+         * Return all routes from the data base by city id.
+         * @return \ArrayIterator
+         * @throws BDException
+         */
+        public function getAllByCity($cityId)
+        {
+            try
+            {
+                $st = $this->connection->prepare('select * from route '
+                    . 'where id = :cityId');
+                $st->bindParam(':cityId', $cityId, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            } catch (\PDOException $e)
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
+        
     }

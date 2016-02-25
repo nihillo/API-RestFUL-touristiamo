@@ -6,14 +6,14 @@
  * and open the template in the editor.
  */
 
-namespace touristiamo\service;
+namespace touristiamo\helper;
 
 /**
  * Description of GenerateToken
  *
  * @author cristobal
  */
-class TokenService
+class TokenHelper
 {
     
     public static function generate($email, $pass)

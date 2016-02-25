@@ -17,7 +17,7 @@ class HttpError
      * 
      * @param Integer $errorCode
      * @param String $message
-     * @return boolean
+     * @return boolean Return true or exec exit
      */
     public static function send($errorCode, $message)
     {

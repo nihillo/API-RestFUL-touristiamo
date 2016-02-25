@@ -51,8 +51,10 @@
 
         
         /**
-        * @param Integer $id
-        */
+         * 
+         * @param integer $id
+         * @throws BDException
+         */
         public function __construct( $id = null){
 
             parent::__construct();	
@@ -61,7 +63,10 @@
             {
                 $st = $this->connection->prepare('select id, comment, score, date, routeId, userId from Comment where id = :id');
                 $st->bindParam(':id', $id, \PDO::PARAM_INT);
-                $st->execute();
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
                 $rs = $st->fetch(\PDO::FETCH_OBJ);
 
                 //Insert value
@@ -91,7 +96,10 @@
                 $st->bindParam(':routeId', $this->routeId, \PDO::PARAM_INT);
                 $st->bindParam(':userId', $this->userId, \PDO::PARAM_INT);
                 $st->bindParam(':date', $this->date, \PDO::PARAM_STR);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
                 
             }catch(\PDOException $e)
             {
@@ -117,7 +125,10 @@
                 $st->bindParam(':routeId', $this->routeId, \PDO::PARAM_INT);
                 $st->bindParam(':userId', $this->userID, \PDO::PARAM_INT);
                 $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
             }catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
@@ -133,12 +144,65 @@
 
             try
             {
-                $st = $this->conexion->prepare('DELETE FROM comment where id = :id');
+                $st = $this->connection->prepare('DELETE FROM comment where id = :id');
                 $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
             }catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
             }
         }	
+        
+        /**
+         * Return all comments by user
+         * @param integer $userId
+         * @return array Return an object array or false if there is a fail
+         * @throws BDException
+         */
+        public function getAllByUserId($userId)
+        {
+            try
+            {
+                $st = $this->connection->prepare('select id, comentary, score, '
+                        . 'date, routeId, userId from comments where userId = :userId');
+                $st->bindParam(':userId', $userId, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            }catch(\PDOException $e)
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
+        
+        /**
+         * Return all comments by route
+         * @param integer $routeId
+         * @return array Return an object array or false if there is a fail
+         * @throws BDException
+         */
+        public function getAllByRouteId($routeId)
+        {
+            try
+            {
+                $st = $this->connection->prepare('select id, comentary, score, '
+                        . 'date, routeId, userId from comments where routeId = :routeId');
+                $st->bindParam(':routeId', $routeId, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            }catch(\PDOException $e)
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
     }

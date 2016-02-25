@@ -7,6 +7,7 @@
  */
 
 namespace touristiamo\service;
+use touristiamo\error\HttpError as HttpError;
 
 /**
  * Description of EmailServcie
@@ -23,6 +24,7 @@ class EmailServcie
      * @param string $subject
      * @param string $message
      * @param string $userName
+     * @return bool Return true if the mail was sent or exit with a message
      */
     public static function sendEmail($to, $subject, $message, $userName)
     {
@@ -41,7 +43,7 @@ class EmailServcie
         $mail->Port = APP_EMAIL_PORT;
         //indico un usuario / clave de un usuario de gmail
         $mail->Username = APP_EMAIL;
-        $mail->Password = APP_CLAVE;
+        $mail->Password = APP_EMAIL_PASS;
         $mail->SetFrom(APP_EMAIL, APP_NAME);
         $mail->AddReplyTo(APP_EMAIL, APP_NAME);
         $mail->Subject = $subject;
@@ -51,11 +53,7 @@ class EmailServcie
         if (!$mail->Send())
         {
             HttpError::send(500, $mail->ErrorInfo);
-        } else
-        {
-            exit( json_encode([
-                'message'   =>  'Mail sent succesful.'
-            ]) );
-        }
+        } 
+        return true;
     }
 }

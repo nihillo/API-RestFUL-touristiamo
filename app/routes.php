@@ -7,7 +7,8 @@ use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 use touristiamo\controller\user\RegisterCtrl as RegisterCtrl;
 use touristiamo\controller\user\UserCtrl as UserCtrl;
-
+use touristiamo\controller\route\RouteCtrl as RouteCtrl;
+use touristiamo\controller\route\RouteAdminCtrl as RouteAdminCtrl;
 
 
 /**
@@ -17,50 +18,66 @@ $app->group('/users', function ()
 {
     $this->group('/register', function () 
     {
-        $registerCtrl = new RegisterCtrl();
         /**
          * This route is used to register new users
          */
-        $this->post('', function (Request $request, Response $response, $args) use ($registerCtrl)
+        $this->post('', function (Request $request, Response $response, $args)
         {
-            $registerCtrl->register($request->getQueryParams());
+            return $response->getBody()
+                    ->write(RegisterCtrl::register($request->getQueryParams()) );
         });
         
         /**
          * This one is used to active user
          */
-        $this->get('/active/{token}', function (Request $request, Response $response, $args) use ($registerCtrl)
+        $this->get('/active/{token}', function (Request $request, Response $response, $args)
         {
-            $registerCtrl->active($args['token']);
+            return $response->getBody()
+                    ->write(RegisterCtrl::active($args['token']) );
         });
     });
     
-    $userCtrl = new UserCtrl();
     /**
      * This one is used to auth users. This return the user token
      */
-    $this->post('/auth', function(Request $request, Response $response, $args) use ($userCtrl)
+    $this->post('/auth', function(Request $request, Response $response, $args)
     {
-        $userCtrl->login($request->getQueryParams()['email'], $request->getQueryParams()['password']);
+        return $response->getBody()
+                ->write(UserCtrl::login($request->getQueryParams()) );
     });
     
-    $this->post('/generateToken', function(Request $request, Response $response, $args) use ($userCtrl)
+    /**
+     * Generate a new token
+     */
+    $this->post('/generateToken', function(Request $request, Response $response, $args)
     {
-        $userCtrl->generateNewToken($request->getQueryParams()['token']);
+        return $response->getBody()
+                ->write(UserCtrl::generateNewToken($request->getQueryParams()) );
     });
-    $this->put('/{id:[0-9]+}/{token:[0-9a-fA-F]{40}}', function(Request $request, Response $response, $args)
+    
+    /**
+     * Update user information
+     */
+    $this->put('/{token:[0-9a-fA-F]{40}}', function(Request $request, Response $response, $args)
     {
-        echo 'PUT ID: '. $args['id']. ' - '. $args['token'];
+        return $response->getBody()
+                ->write(UserCtrl::updateInformation($args['token'], $request->getQueryParams()) );
     });
-    $this->delete('/{id:[0-9]+}/{token:[0-9a-fA-F]{40}}', function(Request $request, Response $response, $args)
+    
+    /**
+     * Disable user from the app.
+     */
+    $this->delete('/{token:[0-9a-fA-F]{40}}', function(Request $request, Response $response, $args)
     {
-        echo 'DELETE ID: '. $args['id']. ' - '. $args['token'];
+        return $response->getBody()
+                ->write(UserCtrl::disable($args['token']) );
     });
-    $this->get('/comments/{id:[0-9]+}', function(Request $request, Response $response, $args)
+    
+    
+    $this->get('/{token:[0-9a-fA-F]{40}}/comments', function(Request $request, Response $response, $args)
     {
-       // TODO: Los comentarios pueden ser publicos o privados segun elección?????
-        echo 'get comments '. $args['id'];
-        $userCtrl = new RegisterCtrl();
+        return $response->getBody()
+                ->write(UserCtrl::getAllComments($args['token']));
     });
 });
 
@@ -69,26 +86,56 @@ $app->group('/users', function ()
  */
 $app->group('/routes', function()
 {
+    /**
+     * Get all routes from the data base
+     */
     $this->get('', function(Request $request, Response $response, $args)
     {
-        echo 'get de todas las rutas';
+        return $request->getBody()
+                ->write(RouteCtrl::getAll());
     });
-    $this->get('/{country}', function(Request $request, Response $response, $args)
+    /**
+     * Get all routes by country id
+     */
+    $this->get('/country/{countryId:[0-9]+}', function(Request $request, Response $response, $args)
     {
-        echo 'get de routes de '. $args['country'];
+        return $request->getBody()
+                ->write(RouteCtrl::getAllByCountry($args['countryId']));
     });
-    $this->get('/{country}/{city}', function(Request $request, Response $response, $args)
+    /**
+     * Get all routes by city id
+     */
+    $this->get('/city/{cityId:[0-9]+}', function(Request $request, Response $response, $args)
     {
-        echo 'get de routes de '. $args['city']. 'de la city '. $args['country'];
+        return $request->getBody()
+                ->write(RouteCtrl::getAllByCity($args['cityId']));
     });
+    /**
+     * Get all comments from a route by id
+     */
     $this->get('/{id:[0-9]+}/comments', function(Request $request, Response $response, $args)
     {
-        echo 'Comments de '. $args['id'];
+        return $request->getBody()
+                ->write(RouteCtrl::getComments($args['id']));
     });
+    /**
+     * Get route score
+     */
+    $this->get('/{id:[0-9]+}/score', function(Request $request, Response $response, $args)
+    {
+        return $request->getBody()
+                ->write(RouteCtrl::getScore($args['id']));
+    });
+    /**
+     * Create a new route. Only the user with accesslevel 2 and 1 can post new routes.
+     */
     $this->post('/{token:[0-9a-fA-F]{40}}', function(Request $request, Response $response, $args)
     {
-        echo 'Post de routes con token '. $args['token'];
+        return $request->getBody()
+                ->write( RouteAdminCtrl::createRoute($args['token'], $request->getQueryParams()) );
     });
+    
+    // TODO: Seguir por aqui
     $this->post('/{id:[0-9]+}/comments', function(Request $request, Response $response, $args)
     {
         echo 'Post new commenst of '. $args['id'];

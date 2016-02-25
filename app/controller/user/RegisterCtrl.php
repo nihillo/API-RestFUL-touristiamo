@@ -9,62 +9,101 @@
 namespace touristiamo\controller\user;
 
 use touristiamo\models\UsersModel as UserModel;
-use touristiamo\service\TokenService as TokenService;
+use touristiamo\helper\TokenHelper as TokenHelper;
 use touristiamo\error\HttpError as HttpError;
 use touristiamo\service\EmailServcie as EmailService;
+use touristiamo\exception\BDException as BDException;
+use touristiamo\View as Json;
 
 /**
- * Description of RegisterCtrl
+ * Controller of user register
  *
- * @author cristobal
+ * @author I.E.S Francisco Ayala
  */
-class RegisterCtrl extends \touristiamo\Controller
+class RegisterCtrl
 {
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
     /**
-     * 
+     * Insert new user into data base and send an email
      * @param \ArrayIterator $args
      */
-    public function register($args)
+    public static function register($args)
     {        
+        $email = $args['email'];
+        $pass = $args['pass'];
+        $userName = trim(htmlentities($args['userName'], ENT_QUOTES));
+        $appToken = $args['appToken'];
+        
+        // Checking
+        if ($appToken !== APP_TOKEN)
+        {
+            HttpError::send(400, 'The app token is incorrect.');
+        }
+        if (empty($email) || empty($pass) || empty($userName))
+        {
+            HttpError::send(400, 'You must fill the email, password and username.');
+        }
+        if (!filter_var($args['email'], FILTER_VALIDATE_EMAIL))
+        {
+            HttpError::send(400, 'The email is not valid.');
+        }
+        
         // Create model
         $userModel = new UserModel();
-        $userModel->email = $args['email'];
-        $userModel->pass = sha1($args['pass']);
-        $userModel->name = $args['userName'];
-        $userModel->token = TokenService::generate($args['email'], $args['pass']);
+        $userModel->email = $email;
+        $userModel->pass = sha1($pass);
+        $userModel->name = $userName;
+        $userModel->token = TokenHelper::generate($email, $pass);
         
-        if ($userModel->save())
+        try
         {
-            $subject = 'Activate acount';
-            $message = '<h1>Welcome to '. APP_NAME. '</h1>';
-            $message .= '<p>To finish the register process, click on the link below</p>';
-            $message .= '<a href="'. APP_URL. '/users/register/active/'. $userModel->token. '">';
-            $message .= APP_URL. '/users/register/active/'. $userModel->token. '</a>';
-            EmailService::sendEmail($userModel->email, 
-                    $subject, $message, $userModel->name);
-        }        
+            if ($userModel->save())
+            {
+                $json = new Json();
+                $json->email = $userModel->email;
+                
+                $subject = 'Activate acount';
+                $message = '<h1>Welcome to '. APP_NAME. '</h1>';
+                $message .= '<p>To finish the register process, click on the link below</p>';
+                $message .= '<a href="'. APP_URL. '/users/register/active/'. $userModel->token. '">';
+                $message .= APP_URL. '/users/register/active/'. $userModel->token. '</a>';
+                if (EmailService::sendEmail($userModel->email, $subject, $message, $userModel->name))
+                {
+                    $json->message = 'The mail was sent successfuly.';
+                }
+                
+                return $json->render();
+            }
+        } catch (BDException $e)
+        {
+            HttpError::send(400, $e->getBdMessage());
+        }
     }
     
     /**
-     * 
+     * Active the user in the app
      * @param String $token
      */
-    public function active($token)
+    public static function active($token)
     {
         $userModel = new UserModel();
-        $userModel->fillByToken($token);
-        $userModel->activated = true;
-        if ( $userModel->update() )
+        $json = new Json();
+        if (!$userModel->fillByToken($token))
         {
-            echo json_encode([
-                'message'   =>  'The user was activated sucessful'
-            ]);
+            HttpError::send(400, 'The token is not valid.');
+        }
+        $userModel->activated = true;
+        try
+        {
+            if ($userModel->update())
+            {
+                $json->email = $userModel->email;
+                $json->message = 'The user was activated sucessful.';
+                return $json->render();
+            }
+                
+        } catch (BDException $e)
+        {
+            return $e->getBdMessage();
         }
     }
 

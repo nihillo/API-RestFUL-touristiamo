@@ -34,7 +34,9 @@
 
         /**
          * 
-         * @param Integer $id
+         * @param integer $id
+         * @return boolean
+         * @throws BDException
          */
         public function __construct($id = null)
         {
@@ -43,8 +45,14 @@
             {
                 $st = $this->connection->prepare('select id, name, countryId from city where id = :id');
                 $st->bindParam(':id', $id, \PDO::PARAM_INT);
-                $st->execute();
-                $rs = $st->fetch(\PDO::FETCH_OBJ);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                if (!$rs = $st->fetch(\PDO::FETCH_OBJ))
+                {
+                    return false;
+                }
 
                 // Load values into model
                 $this->id = $rs->id;	
@@ -56,18 +64,23 @@
 
 
         /**
-         * Save model into database
-         * @return Bool May be true or throw HttpError
+         * Save model into data base
+         * @return boolean
+         * @throws BDException
          */
         public function save() 
         {
             try
             {
                 $st = $this->connection->prepare('insert into city (id, name, countryId) values (:id, :name, :countryId)');
-                $st->bindParam(':id', $this->id);
-                $st->bindParam(':name', $this->name);
-                $st->bindParam(':countryId', $this->countryId);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
+                $st->bindParam(':name', $this->name, \PDO::PARAM_INT);
+                $st->bindParam(':countryId', $this->countryId, \PDO::PARAM_INT);
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return true;
             } catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
@@ -75,8 +88,9 @@
         }
         
         /**
-         * Update the data base with the current values in the memory
-         * @return Bool May be true or throw HttpError
+         * Update model from data base
+         * @return boolean
+         * @throws BDException
          */
         public function update()
         {
@@ -89,7 +103,11 @@
                 $st->bindParam(':id', $this->id);
                 $st->bindParam(':name', $this->name, \PDO::PARAM_STR);
                 $st->bindParam(':countryId', $this->countryId, \PDO::PARAM_INT);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return true;
             }catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());
@@ -98,8 +116,9 @@
 
 
         /**
-         * Delete model in BD that is equal than this object
-         * @return Bool May be true or throw HttpError
+         * Delete model from data base
+         * @return boolean
+         * @throws BDException
          */
         public function delete()
         {
@@ -107,7 +126,11 @@
             {
                 $st = $this->connection->prepare('DELETE FROM city where id = :id');
                 $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
-                return (!$st->execute()) ? HttpError::send(400, $st->errorInfo()[2]) : true;
+                if (!$st->execute()) 
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return true;
             }catch(\PDOException $e)
             {
                 HttpError::send(400, $e->getMessage());

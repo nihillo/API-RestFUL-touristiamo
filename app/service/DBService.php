@@ -7,6 +7,7 @@
  */
 
 namespace touristiamo\service;
+use touristiamo\error\HttpError as HttpError;
 
 use PDO as PDO;
 
@@ -32,16 +33,9 @@ class DBService {
             $this->conexionBD = new \PDO('mysql:host='. APP_BD_HOST. ';dbname='. 
                 APP_BD_NAME, APP_BD_USER, APP_BD_PASSWORD, 
                 array(PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES  \'UTF8\''));
-        } catch(PDOException $e)
+        } catch(\PDOException $e)
         {
-            http_response_code(500);
-            exit (
-                json_encode(
-                    array(
-                        'message'   =>  $e->getMessage()
-                    )
-                )
-            );
+            HttpError::send(500, $e->getMessage());
         }
         
     }
