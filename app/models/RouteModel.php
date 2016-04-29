@@ -66,14 +66,17 @@
             parent::__construct();	
             if ($id != null) 
             {
-                $st = $this->conn->prepare('select id, handicapped, name, description, '
-                        . 'slogan, cityId, userId from Route where id = :id');
-                $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
+                $st = $this->connection->prepare('select id, handicapped, name, description, '
+                        . 'slogan, cityId, userId from route where id = :id');
+                $st->bindParam(':id', $id, \PDO::PARAM_INT);
                 if (!$st->execute()) 
                 {
                     throw new BDException($st->errorInfo());
                 }
-                $rs = $st->fetch(\PDO::FETCH_OBJ);
+                if ( !($rs = $st->fetch(\PDO::FETCH_OBJ)))
+                {
+                    throw new BDException('Not exist any '. get_class($this). ' with id '. $id);
+                }
 
                 //Insert value
                 $this->id = $rs->id;
@@ -231,7 +234,7 @@
             try
             {
                 $st = $this->connection->prepare('select * from route '
-                    . 'where id = :cityId');
+                    . 'where cityId = :cityId');
                 $st->bindParam(':cityId', $cityId, \PDO::PARAM_INT);
                 if (!$st->execute()) 
                 {

@@ -21,10 +21,10 @@
         public $name;
         
         /**
-         *
+         * It is private because this one mustn't visible in the client.
          * @var string
          */
-        public $pass;
+        private $pass;
         
         /**
          *
@@ -33,10 +33,10 @@
         public $email;
         
         /**
-         *
+         * It is private because this one mustn't visible in the client.
          * @var string
          */
-        public $token;
+        private $token;
         
         /**
          *
@@ -79,9 +79,9 @@
                 {
                     throw new BDException($st->errorInfo());
                 }
-                if (!$rs = $st->fetch(\PDO::FETCH_OBJ))
+                if ( !($rs = $st->fetch(\PDO::FETCH_OBJ)))
                 {
-                    return false;
+                    throw new BDException('Not exist any '. get_class($this). ' with id '. $id);
                 }
 
                 $this->id = $rs->id;
@@ -235,4 +235,29 @@
             
             return true;
         }
+        
+        
+        public function setPassword($password)
+        {
+            $this->pass = $password;
+        }
+        
+        
+        public function  getPass()
+        {
+            return $this->pass;
+        }
+
+        
+        public function setToken($token)
+        {
+            $this->token = $token;
+        }
+        
+        
+        public function getToken()
+        {
+            return $this->token;
+        }
+        
     }	

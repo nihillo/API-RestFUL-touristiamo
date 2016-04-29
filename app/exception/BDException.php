@@ -11,13 +11,20 @@ class BDException extends \Exception
 { 
         
     /**
-     * 
+     * @param string $args method errorInfo from PDO::Statement
      * @param \ArrayIterator $args method errorInfo from PDO::Statement
      */
     public function __construct($args)
     {
-        parent::__construct($args[2]);
-        $this->code = $args[0];
+        if (is_string($args))
+        {
+            parent::__construct($args);
+        } else 
+        {
+            parent::__construct($args[2]);
+            $this->code = $args[0];
+        }
+        
     }
 
     /**

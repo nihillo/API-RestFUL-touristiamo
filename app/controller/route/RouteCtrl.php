@@ -26,6 +26,10 @@ class RouteCtrl
         try
         {
             $json->routes = $routesModel->getAll();
+            if (empty($json->routes))
+            {
+                HttpError::send(400, "There isn't any routes yet!");
+            }
             return $json->render();
         } catch (BDException $e)
         {

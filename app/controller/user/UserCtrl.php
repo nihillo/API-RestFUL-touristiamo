@@ -21,8 +21,7 @@ class UserCtrl
 {    
     /**
      * This method is used to login users and returns their tokens.
-     * @param String $email
-     * @param String $pass
+     * @param \ArrayIterator $args
      * @return Json
      */
     public static function login($args)
@@ -38,78 +37,73 @@ class UserCtrl
         }
         if (!UserHelper::isActive($userModel->id) || UserHelper::isBanned($userModel->id))
         {
-            HttpError::send(400, 'The user '. $userModel->email. ' is not activated or was banned');
+            HttpError::send(401, 'The user '. $userModel->email. ' is not activated or was banned');
         }
-        if ($userModel->email === $args['email'] && $userModel->pass === sha1($args['password']))
+        if ($userModel->email === $args['email'] && $userModel->getPass() === sha1($args['password']))
         {
             $json = new Json();
-            $json->name = $userModel->name;
-            $json->token = $userModel->token;
+            $json->token = TokenHelper::generatePublic($userModel, $userModel->getToken());
             return $json->render();
         } else
         {
-            HttpError::send(400, 'Email or password incorrect');
+            HttpError::send(401, 'Email or password incorrect');
         }
     }
     
     /**
      * This method generates a new token for the user.
      * @param \ArrayIterator $args
+     * @param \ArrayIterator $publicToken
      * @return Json
      */
-    public static function generateNewToken($args)
+    public static function generateNewToken($args, $publicToken)
     {
-        if (empty($args['token']))
+        try
         {
-            HttpError::send(400, 'You must type the token');
-        }
-        $userModel = new UserModel();
-        if ($userModel->fillByToken($args['token']))
-        {
+            $userModel = TokenHelper::checkSign($publicToken);
+            
             if (!UserHelper::isActive($userModel->id) || UserHelper::isBanned($userModel->id))
             {
-                HttpError::send(400, 'The user '. $userModel->email. ' is not activated or was banned');
+                HttpError::send(401, 'The user '. $userModel->email. ' is not activated or was banned');
             }
-            $userModel->token = TokenHelper::generate($userModel->email, $userModel->pass);
+            $userModel->setToken(TokenHelper::generate($userModel->email, $userModel->getPass()));
             if ($userModel->update())
             {
                 $json = new Json();
-                $json->token = $userModel->token;
+                $json->token = TokenHelper::generatePublic($userModel, $userModel->getToken());
                 return $json->render();
             } 
-        } else 
+        } catch (BDException $e) 
         {
-            HttpError::send(400, 'The token is incorrect');
+            HttpError::send(500, $e->getBdMessage());
         }
+        
     }
 
     /**
      * This method updates the information of the user.
+     * @param integer $id
+     * @param \ArrayIterator $publicToken
      * @param \ArrayIterator $args
      * @return Json
      */
-    public static function updateInformation($token, $args)
+    public static function  updateInformation($id, $publicToken, $args)
     {
-        $userModel = new UserModel();
-        if (!$userModel->fillByToken($token))
-        {
-            HttpError::send(400, 'The token is incorrect');
-        }
-        if (!UserHelper::isActive($userModel->id) || UserHelper::isBanned($userModel->id))
-        {
-            HttpError::send(400, 'The user '. $userModel->email. ' is not activated or was banned');
-        }
-        if (isset($args['name'])) {
-            $userModel->name = htmlentities(trim($args['name']) , ENT_QUOTES);
-        }
-        
-        if (isset($args['password']))
-        {
-            $userModel->pass = sha1($args['password']);
-        }
-        
         try
         {
+            $userModel = TokenHelper::checkSign($publicToken);
+            
+            if (!UserHelper::isActive($userModel->id) || UserHelper::isBanned($userModel->id))
+            {
+                HttpError::send(401, 'The user '. $userModel->email. ' is not activated or was banned');
+            }
+            if ($id != $userModel->id && !UserHelper::isAdmin($id))
+            {
+                HttpError::send(401, "The user doesn't have permissions to change this information");
+            }
+            $userModel->name = ( !isset($args['name'])) ? $userModel->name : htmlentities(trim($args['name']) , ENT_QUOTES );
+            $userModel->setPassword( (!isset($args['password'])) ? $userModel->getPass() : sha1($args['password']) );
+        
             if ($userModel->update())
             {
                 $json = new Json();
@@ -123,20 +117,23 @@ class UserCtrl
     }
     
     /**
-     * Delete the user from the data base.
-     * @param string $token
+     * 
+     * @param integer $id
+     * @param \ArrayIterator $publicToken
+     * @param ArrayIterator $args
      * @return Json
      */
-    public static function disable($token)
+    public static function disable($id, $publicToken, $args)
     {
-        $userModel = new UserModel();
-        if (!$userModel->fillByToken($token))
-        {
-            HttpError::send(400, 'The token is incorrect');
-        }
-        
         try
         {
+            $userModel = TokenHelper::checkSign($publicToken);
+            
+            if ($id != $userModel->id && !UserHelper::isAdmin($id))
+            {
+                HttpError::send(401, "You don't have permissions to delete this user");
+            }
+            
             $userModel->activated = false;
             if ($userModel->update())
             {
@@ -145,7 +142,7 @@ class UserCtrl
                 
                 $subject = 'Delete acount';
                 $message = '<h1>'. APP_NAME. '</h1>';
-                $message .= '<p>The account that you have in '. APP_NAME. ' have been deleted successfuly</p>';
+                $message .= '<p>The account that you have in '. APP_NAME. ' has been deleted successfuly</p>';
                 $message .= '<p>Thank you for your visit</p>';
                 $json->mailSent = (EmailService::sendEmail($userModel->email, $subject, 
                         $message, $userModel->name)) ? true : false;
@@ -159,27 +156,37 @@ class UserCtrl
     }
     
     /**
-     * Get all comments by user
-     * @param string $token
+     * 
+     * @param integer $id
+     * @param \ArrayIterator $publicToken
+     * @param ArrayIterator $args
      * @return Json
      */
-    public static function getAllComments($token)
+    public static function getAllComments($id, $publicToken)
     {
-        $userModel = new UserModel();
-        
-        if (!$userModel->fillByToken($token))
+        try
         {
-            HttpError::send(400, 'The token is incorrect');
-        }
-        
-        $json = new Json();
-        
-        $commentModel = new CommentModel();
-        if ( !($json->comments = $commentModel->getAllByUserId($userModel->id)) )
+            $userModel = TokenHelper::checkSign($publicToken);
+            
+            if ($id != $userModel->id && !UserHelper::isAdmin($id))
+            {
+                HttpError::send(401, "You don't have permissions to see comments of other users.");
+            }
+
+            $json = new Json();
+
+            $commentModel = new CommentModel();
+            if ( !($json->comments = $commentModel->getAllByUserId($userModel->id)) )
+            {
+                HttpError::send(400, "There is not any comment");
+            }
+
+            return $json->render();
+        } catch (BDException $e)
         {
-            HttpError::send(400, "There is not any comment");
+            HttpError::send(400, $e->getBdMessage());
         }
+
         
-        return $json->render();
     }
 }

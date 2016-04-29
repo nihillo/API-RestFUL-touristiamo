@@ -8,6 +8,8 @@ if (PHP_SAPI == 'cli-server') {
         return false;
     }
 }
+
+header("Access-Control-Allow-Origin: *");
 require __DIR__. DIRECTORY_SEPARATOR. '..'. DIRECTORY_SEPARATOR. '..'. 
         DIRECTORY_SEPARATOR. 'app'. DIRECTORY_SEPARATOR. 'config.php';
 require APP_DIRECTORY . DS. 'vendor'. DS. 'autoload.php';
@@ -28,9 +30,20 @@ if (!APP_MODE_DEBUG)
                 );
         };
     };
+    
+    // Error 405 handler
+    $c['notAllowedHandler'] = function ($c) {
+        return function ($request, $response, $methods) use ($c) {
+            return $c['response']
+                ->withStatus(405)
+                ->withHeader('Allow', implode(', ', $methods))
+                ->write(json_encode([
+                    'message'   =>  'Method must be one of: ' . implode(', ', $methods)
+                ])
+            );
+        };
+    };
 }
-
-session_start();
 
 
 // Instantiate the app

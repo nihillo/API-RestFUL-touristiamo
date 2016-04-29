@@ -4,6 +4,7 @@
     
     use touristiamo\error\HttpError as HttpError;
     use touristiamo\Model as Model;
+    use touristiamo\exception\BDException as BDException;
 
     /**
      *  The class has protected or private variables , so you can protect them. 
@@ -49,9 +50,9 @@
                 {
                     throw new BDException($st->errorInfo());
                 }
-                if (!$rs = $st->fetch(\PDO::FETCH_OBJ))
+                if ( !($rs = $st->fetch(\PDO::FETCH_OBJ)))
                 {
-                    return false;
+                    throw new BDException('Not exist any '. get_class($this). ' with id '. $id);
                 }
 
                 // Load values into model
@@ -96,11 +97,11 @@
         {
             try
             {
-                $st = $this->connection->prepare('update FROM city '
+                $st = $this->connection->prepare('update city '
                         . 'set name = :name, '
                         . 'countryId = :countryId '
                         . 'where id = :id');
-                $st->bindParam(':id', $this->id);
+                $st->bindParam(':id', $this->id, \PDO::PARAM_INT);
                 $st->bindParam(':name', $this->name, \PDO::PARAM_STR);
                 $st->bindParam(':countryId', $this->countryId, \PDO::PARAM_INT);
                 if (!$st->execute()) 
@@ -136,5 +137,50 @@
                 HttpError::send(400, $e->getMessage());
             }
         }	
+        
+        /**
+         * Get all cities from the data base.
+         * @return \PDOStatement
+         * @throws BDException
+         */
+        public function getAll()
+        {
+            try
+            {
+                $st = $this->connection->prepare('select * from city');
+                if (!$st->execute())
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            } catch (\PDOException $e) 
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
+        
+        
+        /**
+         * Get all cities by country id
+         * @param integer $countryId
+         * @return \PDOStatement
+         * @throws BDException
+         */
+        public function getAllByCountryId($countryId)
+        {
+            try
+            {
+                $st = $this->connection->prepare('select * from city where countryId = :countryId');
+                $st->bindParam(':countryId', $countryId, \PDO::PARAM_INT);
+                if (!$st->execute())
+                {
+                    throw new BDException($st->errorInfo());
+                }
+                return $st->fetchAll(\PDO::FETCH_OBJ);
+            } catch (\PDOException $e)
+            {
+                HttpError::send(400, $e->getMessage());
+            }
+        }
 
     }

@@ -19,6 +19,6 @@ class View
     */
     public function render()
     {
-        echo json_encode($this);
+        return json_encode($this);
     }
 }

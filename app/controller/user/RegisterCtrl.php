@@ -50,9 +50,9 @@ class RegisterCtrl
         // Create model
         $userModel = new UserModel();
         $userModel->email = $email;
-        $userModel->pass = sha1($pass);
+        $userModel->setPassword(sha1($pass));
         $userModel->name = $userName;
-        $userModel->token = TokenHelper::generate($email, $pass);
+        $userModel->setToken(TokenHelper::generate($email, $pass));
         
         try
         {
@@ -64,8 +64,8 @@ class RegisterCtrl
                 $subject = 'Activate acount';
                 $message = '<h1>Welcome to '. APP_NAME. '</h1>';
                 $message .= '<p>To finish the register process, click on the link below</p>';
-                $message .= '<a href="'. APP_URL. '/users/register/active/'. $userModel->token. '">';
-                $message .= APP_URL. '/users/register/active/'. $userModel->token. '</a>';
+                $message .= '<a href="'. APP_URL. '/users/register/active/'. $userModel->getToken(). '">';
+                $message .= APP_URL. '/users/register/active/'. $userModel->getToken(). '</a>';
                 if (EmailService::sendEmail($userModel->email, $subject, $message, $userModel->name))
                 {
                     $json->message = 'The mail was sent successfuly.';
@@ -86,7 +86,6 @@ class RegisterCtrl
     public static function active($token)
     {
         $userModel = new UserModel();
-        $json = new Json();
         if (!$userModel->fillByToken($token))
         {
             HttpError::send(400, 'The token is not valid.');
@@ -96,11 +95,12 @@ class RegisterCtrl
         {
             if ($userModel->update())
             {
+                $json = new Json();
                 $json->email = $userModel->email;
                 $json->message = 'The user was activated sucessful.';
                 return $json->render();
             }
-                
+              
         } catch (BDException $e)
         {
             return $e->getBdMessage();

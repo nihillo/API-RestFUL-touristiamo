@@ -3,7 +3,7 @@
  * Slim Framework (http://slimframework.com)
  *
  * @link      https://github.com/slimphp/Slim
- * @copyright Copyright (c) 2011-2015 Josh Lockhart
+ * @copyright Copyright (c) 2011-2016 Josh Lockhart
  * @license   https://github.com/slimphp/Slim/blob/3.x/LICENSE.md (MIT License)
  */
 namespace Slim\Handlers;
@@ -72,6 +72,8 @@ class Error
                 break;
         }
 
+        $this->writeToErrorLog($exception);
+
         $body = new Body(fopen('php://temp', 'r+'));
         $body->write($output);
 
@@ -79,6 +81,65 @@ class Error
                 ->withStatus(500)
                 ->withHeader('Content-type', $contentType)
                 ->withBody($body);
+    }
+
+
+    /**
+     * Write to the error log if displayErrorDetails is false
+     *
+     * @param Exception $exception
+     * @return void
+     */
+    protected function writeToErrorLog($exception)
+    {
+        if ($this->displayErrorDetails) {
+            return;
+        }
+
+        $message = 'Slim Application Error:' . PHP_EOL;
+        $message .= $this->renderTextException($exception);
+        while ($exception = $exception->getPrevious()) {
+            $message .= PHP_EOL . 'Previous exception:' . PHP_EOL;
+            $message .= $this->renderTextException($exception);
+        }
+
+        $message .= PHP_EOL . 'View in rendered output by enabling the "displayErrorDetails" setting.' . PHP_EOL;
+
+        error_log($message);
+    }
+
+    /**
+     * Render exception as Text.
+     *
+     * @param Exception $exception
+     *
+     * @return string
+     */
+    protected function renderTextException(Exception $exception)
+    {
+        $text = sprintf('Type: %s' . PHP_EOL, get_class($exception));
+
+        if (($code = $exception->getCode())) {
+            $text .= sprintf('Code: %s' . PHP_EOL, $code);
+        }
+
+        if (($message = $exception->getMessage())) {
+            $text .= sprintf('Message: %s' . PHP_EOL, htmlentities($message));
+        }
+
+        if (($file = $exception->getFile())) {
+            $text .= sprintf('File: %s' . PHP_EOL, $file);
+        }
+
+        if (($line = $exception->getLine())) {
+            $text .= sprintf('Line: %s' . PHP_EOL, $line);
+        }
+
+        if (($trace = $exception->getTraceAsString())) {
+            $text .= sprintf('Trace: %s', $trace);
+        }
+
+        return $text;
     }
 
     /**
